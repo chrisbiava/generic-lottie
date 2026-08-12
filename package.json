@@ -1,0 +1,23 @@
+{
+  "name": "generic-lottie",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hero lineage animation — Lottie source, generated assets and verification scripts",
+  "scripts": {
+    "build": "npm run build:light && npm run build:dark && npm run build:arrows && npm run build:poster && npm run build:preview",
+    "build:light": "node generate.js",
+    "build:dark": "node generate.js --dark",
+    "build:arrows": "node generate.js --arrows",
+    "build:poster": "node poster.js",
+    "build:preview": "node build-preview.js",
+    "verify": "npm run verify:seam && npm run verify:impact && npm run verify:controls",
+    "verify:seam": "node seam.js 179 479",
+    "verify:impact": "node impact-check.js",
+    "verify:controls": "node interact.js",
+    "shots": "node shots.js 100 179 300 420"
+  },
+  "devDependencies": {
+    "lottie-web": "^5.12.2",
+    "playwright-core": "^1.49.0"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+
+# Build output of build-preview.js — 600+ KB with the player inlined.
+preview.html
+
+# Verification screenshots.
+frame-*.png
+page-*.png
+check-*.png
