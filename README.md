@@ -103,6 +103,81 @@ up afterwards by jumping — which is exactly what a stutter looks like. Fixes, 
 
 Making the animation lighter does not fix a block it did not cause.
 
+### A hero that stays out of the way
+
+Waits for the page's own data, mounts when the browser is idle, and only runs while it is
+actually on screen. Until then the poster holds the space, so the layout never shifts.
+
+```tsx
+import { useEffect, useRef, useState } from "react";
+import Lottie, { type LottieRefCurrentProps } from "lottie-react";
+import lineage from "@/assets/lineage/lineage.json";
+import posterUrl from "@/assets/lineage/lineage-poster.svg";
+
+/** True once `ready` and the browser has a spare moment. */
+function useIdleMount(ready: boolean) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    if (!ready || mounted) return;
+    const schedule = window.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 200));
+    const cancel = window.cancelIdleCallback ?? clearTimeout;
+    const id = schedule(() => setMounted(true));
+    return () => cancel(id as never);
+  }, [ready, mounted]);
+  return mounted;
+}
+
+export function LineageHero({ dataReady }: { dataReady: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  const anim = useRef<LottieRefCurrentProps>(null);
+  const mounted = useIdleMount(dataReady);
+
+  useEffect(() => {
+    const el = box.current;
+    if (!el || !mounted) return;
+    const io = new IntersectionObserver(
+      ([entry]) => (entry.isIntersecting ? anim.current?.play() : anim.current?.pause()),
+      { threshold: 0.01 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [mounted]);
+
+  return (
+    <div
+      ref={box}
+      style={{
+        width: "100%",
+        maxWidth: 800,
+        aspectRatio: "16 / 9",
+        backgroundImage: `url(${posterUrl})`,
+        backgroundSize: "contain",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {mounted && (
+        <Lottie
+          lottieRef={anim}
+          animationData={lineage}
+          loop
+          autoplay
+          rendererSettings={{ progressiveLoad: true }}
+          style={{ width: "100%" }}
+          aria-hidden="true"
+        />
+      )}
+    </div>
+  );
+}
+```
+
+Two things worth keeping if you rewrite it: the wrapper carries `aspect-ratio` and the
+poster as its background, so nothing jumps when the player appears; and the observer is
+attached only after mounting, or it watches an element whose contents do not exist yet.
+
+If there is no meaningful "data ready" signal to wait on, pass `dataReady` as `true` — the
+idle callback alone still keeps construction off the critical path.
+
 ### Integration traps
 
 - **Vite with `vite-plugin-svgr`**: the SVG import returns a component, not a URL. Use
