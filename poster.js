@@ -17,9 +17,9 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require(process.env.PW_CORE || 'playwright-core');
 
-// 199 sits in the idle loop, far enough from any node's reaction to a landing
-// dot that nothing is caught mid-flinch.
-const FRAME = Number(process.argv[2] || 199);
+// Far enough from any node's reaction to a landing dot that nothing is caught
+// mid-flinch, and with dots spread along the edges rather than bunched.
+const FRAME = Number(process.argv[2] || 64);
 const SOURCE = process.argv[3] || 'lineage-arrows.json';
 
 const ALT = 'Data lineage: three sources feed two transformations, which feed the ' +

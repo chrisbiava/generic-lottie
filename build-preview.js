@@ -21,7 +21,7 @@ const darkPath = path.join(here, 'lineage-dark.json');
 const hasDark = fs.existsSync(darkPath);
 const darkData = hasDark ? fs.readFileSync(darkPath, 'utf8') : null;
 
-const SNIPPET = `import { useRef, useSyncExternalStore } from "react";
+const SNIPPET = `import { useSyncExternalStore } from "react";
 import Lottie from "lottie-react";
 import lineage from "./lineage.json";
 import posterUrl from "./lineage-poster.svg";
@@ -34,7 +34,6 @@ const useReducedMotion = () =&gt;
   );
 
 export function LineageHero() {
-  const ref = useRef(null);
   const reduced = useReducedMotion();
 
   if (reduced) {
@@ -42,17 +41,12 @@ export function LineageHero() {
       which feed the canonical dataset, which feeds a dashboard and a report." /&gt;;
   }
 
-  // Play the build once, then jump back to the start of the idle segment on
-  // every completion. Deliberately not playSegments(): a pending segment
-  // change overwrites the next goToAndStop, which bites the moment anything
-  // else wants to address a frame.
   return (
     &lt;Lottie
-      lottieRef={ref}
       animationData={lineage}
-      loop={false}
+      loop
       autoplay
-      onComplete={() =&gt; ref.current.goToAndPlay(180, true)}
+      rendererSettings={{ progressiveLoad: true }}
       style={{ width: "100%", maxWidth: 800 }}
     /&gt;
   );
@@ -149,19 +143,18 @@ const html = `<title>Generic Lottie — hero lineage animation</title>
     <p class="eyebrow">Generic Lottie · hero asset</p>
     <h1>Lineage graph, self-assembling</h1>
     <p class="lede">Three sources feed two transformations, the transformations converge on the
-      canonical dataset, the dataset fans out to a dashboard and a report. The graph builds
-      itself once, then keeps running for as long as the page is open. Every pipe carries its
-      own traffic — the edge to the dashboard runs four times busier than the coldest source —
-      and each dot accelerates as it is drawn in. The consumers flinch when data lands; the
-      dataset never moves, because it is the only large area of red and holds the eye without
-      needing to.</p>
+      canonical dataset, the dataset fans out to a dashboard and a report. The graph is drawn
+      complete and never animates — only the data moves along it, on a ${(anim.op / anim.fr).toFixed(0)}s
+      loop. Every pipe carries its own traffic, the edge to the dashboard four times busier than
+      the coldest source, and each dot accelerates as it is drawn in. The consumers flinch when
+      data lands; the dataset never moves, because it is the only large area of red and holds
+      the eye without needing to.</p>
   </header>
 
   <section>
     <div class="stage" id="stage"><div id="anim"></div></div>
     <div class="controls" style="margin-top:14px">
-      <button id="replay">Replay build</button>
-      <button id="idle">Idle loop</button>
+      <button id="replay">Restart</button>
       <button id="pause">Pause</button>
       <div class="spacer"></div>
       <div class="swatches" role="group" aria-label="Preview background">
@@ -171,31 +164,57 @@ const html = `<title>Generic Lottie — hero lineage animation</title>
       </div>
     </div>
     <div class="scrub" style="margin-top:12px">
-      <input type="range" id="scrub" min="0" max="479" value="0" aria-label="Scrub frames">
-      <span class="frame" id="frameLabel">0 / 479</span>
+      <input type="range" id="scrub" min="0" max="${anim.op - 1}" value="0" aria-label="Scrub frames">
+      <span class="frame" id="frameLabel">0 / ${anim.op - 1}</span>
     </div>
     ${hasDark ? `<p class="note">“Dark” swaps in the dark-variant file, not just the backdrop.
       “Transparent” shows the real checkerboard the asset composites over.</p>` : ''}
   </section>
 
   <section>
-    <h2>Timeline</h2>
-    <div class="timeline">
-      <div class="build"><strong>Build</strong><span>frames 0–179 · 3.0s</span></div>
-      <div class="idle"><strong>Idle loop</strong><span>frames 180–480 · 5.0s, seamless</span></div>
+    <h2>The loop</h2>
+    <p class="note" style="margin:0">One segment, ${anim.op} frames, ${(anim.op / anim.fr).toFixed(1)}s,
+      playing on repeat from the first frame — there is no build phase and nothing to sequence.
+      The graph is drawn complete and still; only the dots move. Every dot cadence divides the
+      loop, dots already in flight at frame 0 are drawn mid-flight, and a node's reaction is
+      dropped altogether if its window would straddle the loop point — keeping it on one side
+      only is what makes a loop visibly jump. Verified by rendering frame 0 and frame
+      ${anim.op} and comparing the SVG.</p>
+  </section>
+
+  <section>
+    <h2>Performance</h2>
+    <p class="note" style="margin:0 0 14px">Measured with <code class="inline">npm run perf</code>,
+      CPU throttled 6× to stand in for a slow laptop. The steady state is free; everything
+      costs at construction.</p>
+    <div style="overflow-x:auto">
+      <table style="border-collapse:collapse;width:100%;font-size:14px">
+        <thead><tr style="text-align:left;color:var(--muted)">
+          <th style="padding:6px 12px 6px 0;font-weight:500">Renderer</th>
+          <th style="padding:6px 12px 6px 0;font-weight:500">Build + first paint</th>
+          <th style="padding:6px 12px 6px 0;font-weight:500">Per frame</th>
+          <th style="padding:6px 0;font-weight:500">DOM nodes</th>
+        </tr></thead>
+        <tbody style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums">
+          <tr><td style="padding:6px 12px 6px 0">svg</td><td>140–224 ms</td><td>0.52 ms</td><td>126</td></tr>
+          <tr style="color:var(--accent)"><td style="padding:6px 12px 6px 0">svg + progressiveLoad</td><td>46–55 ms</td><td>0.23 ms</td><td>126</td></tr>
+          <tr><td style="padding:6px 12px 6px 0">canvas</td><td>50–77 ms</td><td>1.06 ms</td><td>1</td></tr>
+        </tbody>
+      </table>
     </div>
-    <p class="note">The idle segment is periodic: the frame after 479 is pixel-identical to
-      frame 180, so the wrap is invisible. Every dot cadence divides the 300-frame loop, and a
-      node's reaction is dropped altogether if its window would straddle the loop point —
-      keeping it on one side only is what makes a loop visibly jump. Verified by comparing the
-      rendered SVG at both ends.</p>
+    <p class="note">A frame budget at 60fps is 16.7 ms, so no renderer is anywhere near
+      struggling once running. If the hero stutters, it is being starved: something else on the
+      main thread — a large <code class="inline">JSON.parse</code>, a big React commit — blocks
+      rAF, and the player catches up by jumping. Mount the animation after the payload has
+      landed, or move that parse off the main thread; making the animation lighter will not fix
+      a block it did not cause.</p>
   </section>
 
   ${poster ? `<section>
     <h2>Reduced motion</h2>
     <p class="note" style="margin:0 0 14px">A hero that loops forever is exactly what
       <code class="inline">prefers-reduced-motion</code> exists to switch off. This poster is
-      exported from frame 199 of the animation itself, so the two can't drift apart — same
+      exported from a frame of the animation itself, so the two can't drift apart — same
       geometry, same palette, no motion. One difference on purpose: <strong>the poster keeps
       arrowheads</strong>. While the animation runs, the travelling dots show which way each
       edge flows and a static head on top of them is one mark too many; with everything
@@ -211,7 +230,7 @@ const html = `<title>Generic Lottie — hero lineage animation</title>
     <dl class="specs">
       <dt>Canvas</dt><dd>${anim.w} × ${anim.h} · 16:9 · scales to any size</dd>
       <dt>Frame rate</dt><dd>${anim.fr} fps</dd>
-      <dt>Duration</dt><dd>${(anim.op / anim.fr).toFixed(1)}s total · ${((anim.op - 180) / anim.fr).toFixed(1)}s loop</dd>
+      <dt>Duration</dt><dd>${(anim.op / anim.fr).toFixed(1)}s · seamless loop</dd>
       <dt>File</dt><dd>${kb} KB JSON · ${anim.layers.length} layers · no images, no fonts</dd>
       ${poster ? `<dt>Poster</dt><dd>${posterKb} KB SVG · static, reduced-motion fallback</dd>` : ''}
       ${hasDark ? '<dt>Variants</dt><dd>lineage.json · lineage-dark.json</dd>' : ''}
@@ -225,9 +244,10 @@ const html = `<title>Generic Lottie — hero lineage animation</title>
   <section>
     <h2>Drop-in</h2>
     <pre><code>${SNIPPET}</code></pre>
-    <p class="note">To skip the build entirely, drop the ref and use
-      <code class="inline">initialSegment={[180, 480]}</code> with <code class="inline">loop</code>.${
-      hasDark ? ' On a dark hero, swap in <code class="inline">lineage-dark.json</code>.' : ''}</p>
+    <p class="note">No ref, no segments, no completion handler: the file is one loop and
+      <code class="inline">loop</code> plays it.${
+      hasDark ? ' On a dark hero, swap in <code class="inline">lineage-dark.json</code>.' : ''}
+      If the hero competes with data fetches on first paint, see <em>Performance</em> below.</p>
   </section>
 </main>
 
@@ -235,6 +255,7 @@ const html = `<title>Generic Lottie — hero lineage animation</title>
 <script>
   const VARIANTS = { light: ${data}${hasDark ? ',\n    dark: ' + darkData : ''} };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const LAST_FRAME = ${anim.op - 1};
 
   const scrub = document.getElementById('scrub');
   const label = document.getElementById('frameLabel');
@@ -247,27 +268,22 @@ const html = `<title>Generic Lottie — hero lineage animation</title>
     if (anim) anim.destroy();
     anim = lottie.loadAnimation({
       container: document.getElementById('anim'),
-      renderer: 'svg', loop: false, autoplay: false,
+      renderer: 'svg', loop: true, autoplay: false,
       animationData: VARIANTS[variant] || VARIANTS.light,
     });
     window.anim = anim;
-    // The idle loop is done by jumping back on 'complete' rather than with
-    // playSegments: a pending segment change would overwrite the next
-    // goToAndStop, which is what the scrubber uses.
-    anim.addEventListener('complete', () => anim.goToAndPlay(180, true));
     anim.addEventListener('enterFrame', () => {
       const f = Math.round(anim.currentFrame + (anim.firstFrame || 0));
-      label.textContent = f + ' / 479';
+      label.textContent = f + ' / ' + LAST_FRAME;
       if (!scrubbing) scrub.value = f;
     });
     if (playing) anim.goToAndPlay(frame, true); else anim.goToAndStop(frame, true);
   }
 
-  // Reduced motion gets the finished graph, held still.
-  mount('light', reduced ? 199 : 0, !reduced);
+  // Reduced motion gets the graph held still.
+  mount('light', reduced ? 64 : 0, !reduced);
 
   document.getElementById('replay').onclick = () => anim.goToAndPlay(0, true);
-  document.getElementById('idle').onclick = () => anim.goToAndPlay(180, true);
   document.getElementById('pause').onclick = () => anim.pause();
 
   scrub.addEventListener('pointerdown', () => { scrubbing = true; });

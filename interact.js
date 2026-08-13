@@ -41,12 +41,13 @@ const { chromium } = require(process.env.PW_CORE || 'playwright-core');
   await page.waitForTimeout(120);
   console.log('scrub label:', await page.textContent('#frameLabel'));
 
-  // The wrap must land back in the idle segment, not at the start of the build.
-  await page.evaluate(() => window.anim.goToAndPlay(470, true));
+  // Playing past the last frame must wrap round to the start and keep going.
+  const last = await page.evaluate(() => window.anim.totalFrames - 1);
+  await page.evaluate((f) => window.anim.goToAndPlay(f, true), last - 10);
   await page.waitForTimeout(600);
   const wrapped = await page.evaluate(() => Math.round(window.anim.currentFrame));
-  console.log('after playing past the end, frame =', wrapped,
-    wrapped >= 180 && wrapped < 300 ? '(wrapped into idle)' : '(WRONG)');
+  console.log(`after playing past frame ${last}, frame =`, wrapped,
+    wrapped < last - 10 ? '(wrapped and still playing)' : '(WRONG — stalled at the end)');
   console.log('errors:', errors.length ? errors : 'none');
   await browser.close();
 })();

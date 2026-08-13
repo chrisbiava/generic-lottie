@@ -11,10 +11,11 @@
     "build:poster": "node poster.js",
     "build:preview": "node build-preview.js",
     "verify": "npm run verify:seam && npm run verify:impact && npm run verify:controls",
-    "verify:seam": "node seam.js 179 479",
+    "verify:seam": "node seam.js",
     "verify:impact": "node impact-check.js",
     "verify:controls": "node interact.js",
-    "shots": "node shots.js 100 179 300 420"
+    "perf": "node perf.js",
+    "shots": "node shots.js 0 64 150 240"
   },
   "devDependencies": {
     "lottie-web": "^5.12.2",

@@ -12,7 +12,7 @@ const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'lineage.json'), 'u
 const peaksOf = (name) => {
   const l = data.layers.find((x) => x.nm === name);
   if (!l || l.ks.s.a !== 1) return [];
-  return l.ks.s.k.filter((kf) => kf.s[0] > 100.5 && kf.t >= 180).map((kf) => kf.t);
+  return l.ks.s.k.filter((kf) => kf.s[0] > 100.5).map((kf) => kf.t);
 };
 
 const targets = ['node-ds', 'node-dash', 'node-rep'];
@@ -35,7 +35,7 @@ for (const t of targets) console.log(t, '→ reactions at', peaksOf(t).join(', '
   // dataset's — otherwise the "quiet" reading catches a different node mid-nudge.
   const allPeaks = targets.flatMap(peaksOf);
   const quiet = [];
-  for (let f = 190; f < 470; f++) {
+  for (let f = 0; f < data.op; f++) {
     if (allPeaks.every((p) => Math.abs(f - p) > 26)) quiet.push(f);
   }
 
